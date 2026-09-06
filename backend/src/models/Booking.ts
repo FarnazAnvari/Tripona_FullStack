@@ -1,44 +1,61 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IBooking extends Document {
-  tripId: number;
-  tripTitle: string;
-  userId?: mongoose.Types.ObjectId;
+  tripId: mongoose.Types.ObjectId;
+  userId: mongoose.Types.ObjectId;
+  startDate: Date;
+  guests: number;
+  totalPrice: number;
   contactInfo: {
     fullName: string;
     email: string;
     phone: string;
   };
-  startDate: string;
-  guests: number;
-  totalPrice: number;
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  bookingStatus: 'confirmed' | 'cancelled';
-  createdAt: Date;
+  status: 'pending' | 'confirmed' | 'cancelled';
 }
 
 const bookingSchema = new Schema<IBooking>(
   {
-    tripId: { type: Number, required: true },
-    tripTitle: { type: String, required: true },
-    userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    tripId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Trip',
+      required: true,
+    },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    startDate: {
+      type: Date,
+      required: true,
+    },
+    guests: {
+      type: Number,
+      required: true,
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+    },
     contactInfo: {
-      fullName: { type: String, required: true },
-      email: { type: String, required: true },
-      phone: { type: String, required: true },
+      fullName: {
+        type: String,
+        required: true,
+      },
+      email: {
+        type: String,
+        required: true,
+      },
+      phone: {
+        type: String,
+        required: true,
+      },
     },
-    startDate: { type: String, required: true },
-    guests: { type: Number, required: true, min: 1 },
-    totalPrice: { type: Number, required: true },
-    paymentStatus: {
+    status: {
       type: String,
-      enum: ['pending', 'completed', 'failed'],
-      default: 'completed',
-    },
-    bookingStatus: {
-      type: String,
-      enum: ['confirmed', 'cancelled'],
-      default: 'confirmed',
+      enum: ['pending', 'confirmed', 'cancelled'],
+      default: 'pending',
     },
   },
   {
@@ -46,4 +63,7 @@ const bookingSchema = new Schema<IBooking>(
   }
 );
 
-export const Booking = mongoose.model<IBooking>('Booking', bookingSchema);
+export const Booking = mongoose.model<IBooking>(
+  'Booking',
+  bookingSchema
+);

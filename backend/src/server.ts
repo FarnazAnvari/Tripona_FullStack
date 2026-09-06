@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { connectDB } from './config/db';
 import tripRoutes from './routes/tripRoutes';
 import bookingRoutes from './routes/bookingRoutes';
+import authRoutes from './routes/authRoutes';
 
 dotenv.config();
 
@@ -24,8 +25,10 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', message: 'Tripona API is running smoothly 🚀' });
 });
 
+
 app.use('/api/trips', tripRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/auth', authRoutes);
 
 // Start Server
 const startServer = async () => {
