@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react"; // useEffect اضافه شد برای مدیریت اسکرول
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { Heart, User, Phone, ChevronRight, Menu, X } from "lucide-react";
+import {
+  Heart,
+  User,
+  Phone,
+  ChevronRight,
+  Menu,
+  X,
+  LogOut,
+  CalendarCheck,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
-// Destinations (بدون تغییر)
+// Destinations
 const destinationsData: Record<string, string[]> = {
   Africa: ["Egypt", "Morocco", "South Africa", "Kenya", "Tanzania"],
   Asia: [
@@ -51,7 +61,7 @@ const destinationsData: Record<string, string[]> = {
   "All destinations": [],
 };
 
-// Ways to travel (بدون تغییر)
+// Ways to travel
 const waysToTravelData: Record<string, string[]> = {
   Themes: [
     "18 to 35s",
@@ -77,7 +87,7 @@ const waysToTravelData: Record<string, string[]> = {
   "New trips": ["New for 2024", "New for 2025"],
 };
 
-// Deals (بدون تغییر)
+// Deals
 const dealsData = [
   "Last minute deals",
   "Early bird offers",
@@ -86,7 +96,7 @@ const dealsData = [
   "View all deals",
 ];
 
-// About (بدون تغییر)
+// About
 const aboutData = [
   "About Tripona",
   "Our mission",
@@ -97,6 +107,11 @@ const aboutData = [
 ];
 
 export default function Header() {
+  const { user, logout } = useAuth();
+  const isAuthenticated = !!user; // اگر user وجود داشت یعنی لاگین است
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [activeContinent, setActiveContinent] = useState("Asia");
   const [activeWay, setActiveWay] = useState("Themes");
@@ -114,6 +129,20 @@ export default function Header() {
   const [mobileWayCategory, setMobileWayCategory] = useState<string | null>(
     null,
   );
+
+  // بستن دراپ‌داون با کلیک بیرون از آن
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setUserDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // غیرفعال کردن اسکرول صفحه وقتی منوی موبایل باز است
   useEffect(() => {
@@ -151,8 +180,9 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Desktop Navigation (بدون تغییر) */}
+          {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-8 h-full">
+            {/* Destinations */}
             <div
               className="relative h-full flex items-center"
               onMouseEnter={() => setOpenMenu("destinations")}
@@ -161,7 +191,9 @@ export default function Header() {
               <span className="relative flex items-center h-full text-[15px] font-semibold text-[#222] cursor-pointer">
                 Destinations
                 <span
-                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${openMenu === "destinations" ? "opacity-100" : "opacity-0"}`}
+                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${
+                    openMenu === "destinations" ? "opacity-100" : "opacity-0"
+                  }`}
                 ></span>
               </span>
               {openMenu === "destinations" && (
@@ -171,7 +203,11 @@ export default function Header() {
                       <div
                         key={item}
                         onMouseEnter={() => setActiveContinent(item)}
-                        className={`flex items-center justify-between px-4 py-2.5 rounded-md cursor-pointer ${activeContinent === item ? "bg-gray-100 font-bold" : "hover:bg-gray-50 font-semibold text-gray-700"}`}
+                        className={`flex items-center justify-between px-4 py-2.5 rounded-md cursor-pointer ${
+                          activeContinent === item
+                            ? "bg-gray-100 font-bold"
+                            : "hover:bg-gray-50 font-semibold text-gray-700"
+                        }`}
                       >
                         <span className="text-[14px]">{item}</span>
                         {item !== "All destinations" && (
@@ -200,6 +236,7 @@ export default function Header() {
               )}
             </div>
 
+            {/* Ways to travel */}
             <div
               className="relative h-full flex items-center"
               onMouseEnter={() => setOpenMenu("ways")}
@@ -208,7 +245,9 @@ export default function Header() {
               <span className="relative flex items-center h-full text-[15px] font-semibold text-[#222] cursor-pointer">
                 Ways to travel
                 <span
-                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${openMenu === "ways" ? "opacity-100" : "opacity-0"}`}
+                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${
+                    openMenu === "ways" ? "opacity-100" : "opacity-0"
+                  }`}
                 ></span>
               </span>
               {openMenu === "ways" && (
@@ -218,7 +257,11 @@ export default function Header() {
                       <div
                         key={item}
                         onMouseEnter={() => setActiveWay(item)}
-                        className={`flex items-center justify-between px-4 py-2.5 rounded-md cursor-pointer ${activeWay === item ? "bg-gray-100 font-bold" : "hover:bg-gray-50 font-semibold text-gray-700"}`}
+                        className={`flex items-center justify-between px-4 py-2.5 rounded-md cursor-pointer ${
+                          activeWay === item
+                            ? "bg-gray-100 font-bold"
+                            : "hover:bg-gray-50 font-semibold text-gray-700"
+                        }`}
                       >
                         <span className="text-[14px]">{item}</span>
                         {item !== "New trips" && (
@@ -245,6 +288,7 @@ export default function Header() {
               )}
             </div>
 
+            {/* Deals */}
             <div
               className="relative h-full flex items-center"
               onMouseEnter={() => setOpenMenu("deals")}
@@ -253,7 +297,9 @@ export default function Header() {
               <span className="relative flex items-center h-full text-[15px] font-semibold text-[#222] cursor-pointer">
                 Deals
                 <span
-                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${openMenu === "deals" ? "opacity-100" : "opacity-0"}`}
+                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${
+                    openMenu === "deals" ? "opacity-100" : "opacity-0"
+                  }`}
                 ></span>
               </span>
               {openMenu === "deals" && (
@@ -271,6 +317,7 @@ export default function Header() {
               )}
             </div>
 
+            {/* About */}
             <div
               className="relative h-full flex items-center"
               onMouseEnter={() => setOpenMenu("about")}
@@ -279,7 +326,9 @@ export default function Header() {
               <span className="relative flex items-center h-full text-[15px] font-semibold text-[#222] cursor-pointer">
                 About
                 <span
-                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${openMenu === "about" ? "opacity-100" : "opacity-0"}`}
+                  className={`absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#e31c23] transition-opacity ${
+                    openMenu === "about" ? "opacity-100" : "opacity-0"
+                  }`}
                 ></span>
               </span>
               {openMenu === "about" && (
@@ -299,16 +348,80 @@ export default function Header() {
           </nav>
         </div>
 
-        {/* Right side (Desktop Icons & Hamburger) */}
+        {/* Right side (Desktop Icons & User Auth) */}
         <div className="flex items-center gap-6 text-gray-800">
-          <div className="hidden lg:flex items-center gap-6">
-            <Link href="#" className="hover:text-[#e31c23]">
+          <div className="hidden lg:flex items-center gap-5">
+            <Link
+              href="#"
+              className="hover:text-[#e31c23] transition-colors"
+              title="Wishlist"
+            >
               <Heart size={22} strokeWidth={1.5} />
             </Link>
-            <Link href="#" className="hover:text-[#e31c23]">
-              <User size={22} strokeWidth={1.5} />
-            </Link>
-            <Link href="#" className="hover:text-[#e31c23]">
+
+            {/* بخش احراز هویت هوشمند کاربر */}
+            {isAuthenticated ? (
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="flex items-center gap-2 text-sm font-semibold hover:text-[#e31c23] transition-colors py-1"
+                >
+                  <div className="w-8 h-8 rounded-full bg-red-100 text-[#e31c23] flex items-center justify-center font-bold text-xs uppercase">
+                    {user?.name ? user.name.substring(0, 2) : "U"}
+                  </div>
+                  <span className="max-w-[120px] truncate">
+                    {user?.name || "Account"}
+                  </span>
+                </button>
+
+                {/* منوی کشویی کاربر لاگین شده */}
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-3 w-56 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-1">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-400">Signed in as</p>
+                      <p className="text-sm font-semibold text-gray-800 truncate">
+                        {user?.email}
+                      </p>
+                    </div>
+
+                    <Link
+                      href="/bookings"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#e31c23] transition-colors"
+                    >
+                      <CalendarCheck size={16} />
+                      <span>My Bookings</span>
+                    </Link>
+
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        logout();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                    >
+                      <LogOut size={16} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-2 text-sm font-semibold hover:text-[#e31c23] transition-colors"
+                title="Sign In"
+              >
+                <User size={22} strokeWidth={1.5} />
+                <span className="text-[14px]">Sign In</span>
+              </Link>
+            )}
+
+            <Link
+              href="#"
+              className="hover:text-[#e31c23] transition-colors"
+              title="Contact"
+            >
               <Phone size={22} strokeWidth={1.5} />
             </Link>
           </div>
@@ -399,12 +512,16 @@ export default function Header() {
                 Wishlist
               </Link>
 
+              {/* ریدایرکت بر اساس وضعیت لاگین در منوی موبایل */}
               <Link
-                href="#"
+                href={isAuthenticated ? "/my-bookings" : "/login"}
+                onClick={() => setMobileMenu(false)}
                 className="flex items-center gap-4 text-[17px] py-4 px-2 rounded-md hover:bg-gray-100 transition-colors"
               >
                 <User size={26} />
-                Manage booking
+                {isAuthenticated
+                  ? `My Bookings (${user?.name?.split(" ")[0] || "User"})`
+                  : "Sign In / Manage booking"}
               </Link>
 
               <Link
@@ -414,6 +531,19 @@ export default function Header() {
                 <Phone size={26} />
                 Contact us
               </Link>
+
+              {isAuthenticated && (
+                <button
+                  onClick={() => {
+                    setMobileMenu(false);
+                    logout();
+                  }}
+                  className="flex items-center gap-4 text-[17px] py-4 px-2 text-red-600 rounded-md hover:bg-red-50 transition-colors text-left mt-2"
+                >
+                  <LogOut size={24} />
+                  Sign Out
+                </button>
+              )}
             </div>
           )}
 

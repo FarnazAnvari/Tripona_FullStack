@@ -43,12 +43,21 @@ function ConfirmationContent() {
           </p>
         </div>
 
-        <Link
-          href="/trips"
-          className="mt-8 inline-flex rounded-xl bg-orange-500 px-6 py-3 font-bold text-white transition hover:bg-orange-600"
-        >
-          Explore more trips
-        </Link>
+        {/* ====== دکمه‌های هدایت بعد از رزرو ====== */}
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/bookings"
+            className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg text-center transition"
+          >
+            View My Bookings
+          </Link>
+          <Link
+            href="/"
+            className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-lg text-center transition"
+          >
+            Explore More Trips
+          </Link>
+        </div>
       </section>
     </main>
   );
