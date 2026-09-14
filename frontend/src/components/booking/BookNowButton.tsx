@@ -18,9 +18,14 @@ export default function BookNowButton({ trip }: BookNowButtonProps) {
   const initBooking = useBookingStore((state) => state.initBooking);
 
   const handleBooking = () => {
-initBooking(trip);
-router.push("/booking");
-  };
+  console.log("Selected trip:", trip);
+
+  initBooking(trip);
+
+  console.log("Booking initialized:", trip);
+
+  router.push("/booking");
+};
 
   return (
 <button

@@ -3,35 +3,95 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useBookingStore } from "@/store/bookingStore";
+import { apiFetch } from "@/lib/api";
 
 interface BookingStepFourProps {
   onBack: () => void;
-  onComplete: () => void;
+  onComplete?: () => void;
 }
 
-export default function BookingStepFour({ onBack }: BookingStepFourProps) {
+export default function BookingStepFour({ onBack, onComplete }: BookingStepFourProps) {
   const router = useRouter();
-  const tripTitle = useBookingStore((state) => state.tripTitle);
-  const totalPrice = useBookingStore((state) => state.totalPrice);
+
+  // خواندن اطلاعات کامل رزرو از Zustand
+  const {
+    tripId,
+    tripTitle,
+    selectedDate,
+    guestsCount,
+    totalPrice,
+    passengers,
+    confirmBooking,
+  } = useBookingStore();
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardholderName, setCardholderName] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [cvv, setCvv] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleCardNumberChange = (value: string) => {
     const digits = value.replace(/\D/g, "").slice(0, 16);
     setCardNumber(digits.replace(/(\d{4})(?=\d)/g, "$1 "));
   };
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setIsProcessing(true);
-    // شبیه‌سازی پرداخت و رفتن به صفحه تایید
-    setTimeout(() => {
-      setIsProcessing(false);
+    setErrorMessage(null);
+
+    // استخراج مشخصات مسافر اول به عنوان Contact Info
+    const primaryPassenger = passengers[0] || {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+    };
+
+    const fullName = `${primaryPassenger.firstName} ${primaryPassenger.lastName}`.trim() || cardholderName;
+
+    const payload = {
+      tripId: Number(tripId),
+      tripTitle: tripTitle || "Trip",
+      startDate: selectedDate || new Date().toISOString().split("T")[0],
+      guests: Number(guestsCount) || 1,
+      totalPrice: Number(totalPrice),
+      contactInfo: {
+        fullName: fullName || "Guest User",
+        email: primaryPassenger.email || "guest@example.com",
+        phone: primaryPassenger.phone || "+989123456789",
+      },
+    };
+
+    try {
+      // ارسال درخواست واقعی به سرور
+      const response = await apiFetch<any>("/api/bookings", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      // کد ارجاع از دیتابیس (یا شناسه رزرو ساخته شده)
+      const bookingRef =
+        response?.data?.bookingReference ||
+        response?.data?._id ||
+        `TRP-${Math.floor(10000 + Math.random() * 90000)}`;
+
+      // ذخیره در استور با کد تایید واقعی
+      confirmBooking(bookingRef);
+
+      if (onComplete) {
+        onComplete();
+      }
+
       router.push("/booking/confirmation");
-    }, 1500);
+    } catch (error: any) {
+      console.error("Booking submission failed:", error);
+      setErrorMessage(
+        error?.message || "Failed to complete booking. Please make sure you are logged in and try again."
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const isFormValid =
@@ -53,6 +113,12 @@ export default function BookingStepFour({ onBack }: BookingStepFourProps) {
           Tour: {tripTitle || "Trip"} &mdash; Total: ${totalPrice}
         </p>
       </div>
+
+      {errorMessage && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {errorMessage}
+        </div>
+      )}
 
       <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
         <strong>Demo Payment:</strong> No real money will be charged. You can
@@ -139,7 +205,8 @@ export default function BookingStepFour({ onBack }: BookingStepFourProps) {
         <button
           type="button"
           onClick={onBack}
-          className="rounded-xl border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+          disabled={isProcessing}
+          className="rounded-xl border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
         >
           Back to Review
         </button>

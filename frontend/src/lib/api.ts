@@ -1,5 +1,6 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+).replace(/\/+$/, "");
 
 export interface ApiFetchOptions extends RequestInit {
   token?: string | null;
@@ -13,6 +14,34 @@ export interface ApiErrorResponse {
 }
 
 /**
+ * دریافت توکن ذخیره شده از مرورگر با بررسی کلیدهای متداول
+ */
+function getClientToken(): string | null {
+  if (typeof window === "undefined") return null;
+
+  const possibleKeys = ["tripona_token", "token", "accessToken", "jwt"];
+  for (const key of possibleKeys) {
+    const val = localStorage.getItem(key);
+    if (val && val.trim() !== "" && val !== "undefined" && val !== "null") {
+      let cleanVal = val.trim();
+      // در صورتی که توکن داخل دابل‌کوتیشن JSON ذخیره شده باشد
+      if (cleanVal.startsWith('"') && cleanVal.endsWith('"')) {
+        cleanVal = cleanVal.slice(1, -1);
+      }
+      return cleanVal;
+    }
+  }
+
+  // بررسی کوکی‌ها در صورتی که توکن به عنوان کوکی ذخیره شده باشد
+  const match = document.cookie.match(/(?:^|;\s*)(?:tripona_token|token|accessToken)=([^;]*)/);
+  if (match && match[1]) {
+    return decodeURIComponent(match[1]);
+  }
+
+  return null;
+}
+
+/**
  * تابع اصلی برای ارسال درخواست‌ها به Backend
  */
 export async function apiFetch<T = any>(
@@ -21,28 +50,53 @@ export async function apiFetch<T = any>(
 ): Promise<T> {
   const { token, headers: customHeaders, ...restOptions } = options;
 
-  // دریافت توکن: اگر صریح پاس داده شده بود استفاده می‌شود، در غیر این صورت از LocalStorage خوانده می‌شود
-  const authToken =
-    token ??
-    (typeof window !== 'undefined'
-      ? localStorage.getItem('tripona_token')
-      : null);
+  // ۱. دریافت توکن
+  let authToken: string | null = token ?? getClientToken();
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(customHeaders as Record<string, string>),
-  };
+  // ۲. آماده‌سازی هدرها
+  const headers: Record<string, string> = {};
 
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
+  if (!(restOptions.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
   }
 
-  // اطمینان از ساختار درست آدرس endpoint
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${API_BASE_URL}${cleanEndpoint}`;
+  if (customHeaders) {
+    if (customHeaders instanceof Headers) {
+      customHeaders.forEach((value, key) => {
+        headers[key] = value;
+      });
+    } else if (Array.isArray(customHeaders)) {
+      customHeaders.forEach(([key, value]) => {
+        headers[key] = value;
+      });
+    } else {
+      Object.assign(headers, customHeaders);
+    }
+  }
+
+  // ۳. افزودن هدر Authorization
+  if (authToken) {
+    headers["Authorization"] = authToken.startsWith("Bearer ")
+      ? authToken
+      : `Bearer ${authToken}`;
+  }
+
+  // ۴. نرمال‌سازی آدرس Endpoint
+  let cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  if (cleanEndpoint.startsWith("/api/")) {
+    cleanEndpoint = cleanEndpoint.replace(/^\/api/, "");
+  }
+
+  const fullUrl = `${BASE_URL}${cleanEndpoint}`;
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[API Request] ${restOptions.method || "GET"} -> ${fullUrl}`, {
+      hasAuthToken: Boolean(headers["Authorization"]),
+    });
+  }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(fullUrl, {
       ...restOptions,
       headers,
     });
@@ -59,30 +113,30 @@ export async function apiFetch<T = any>(
 
     return data as T;
   } catch (error: any) {
-    console.error(`[API Error] ${endpoint}:`, error.message || error);
+    console.error(`[API Error] ${cleanEndpoint}:`, error?.message || error);
     throw error;
   }
 }
 
-// توابع کمکی کاربردی برای راحتی کار در صفحات و کامپوننت‌ها
+// متدهای کمکی
 export const api = {
   get: <T = any>(endpoint: string, options?: ApiFetchOptions) =>
-    apiFetch<T>(endpoint, { ...options, method: 'GET' }),
+    apiFetch<T>(endpoint, { ...options, method: "GET" }),
 
   post: <T = any>(endpoint: string, body?: any, options?: ApiFetchOptions) =>
     apiFetch<T>(endpoint, {
       ...options,
-      method: 'POST',
+      method: "POST",
       body: body ? JSON.stringify(body) : undefined,
     }),
 
   put: <T = any>(endpoint: string, body?: any, options?: ApiFetchOptions) =>
     apiFetch<T>(endpoint, {
       ...options,
-      method: 'PUT',
+      method: "PUT",
       body: body ? JSON.stringify(body) : undefined,
     }),
 
   delete: <T = any>(endpoint: string, options?: ApiFetchOptions) =>
-    apiFetch<T>(endpoint, { ...options, method: 'DELETE' }),
+    apiFetch<T>(endpoint, { ...options, method: "DELETE" }),
 };

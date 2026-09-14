@@ -1,7 +1,7 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface IBooking extends Document {
-  tripId: mongoose.Types.ObjectId;
+  tripId: number; 
   userId: mongoose.Types.ObjectId;
   startDate: Date;
   guests: number;
@@ -11,19 +11,19 @@ export interface IBooking extends Document {
     email: string;
     phone: string;
   };
-  status: 'pending' | 'confirmed' | 'cancelled';
+  status: "pending" | "confirmed" | "cancelled";
 }
 
 const bookingSchema = new Schema<IBooking>(
   {
     tripId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Trip',
+      type: Number,
       required: true,
     },
+
     userId: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     startDate: {
@@ -54,16 +54,13 @@ const bookingSchema = new Schema<IBooking>(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'cancelled'],
-      default: 'pending',
+      enum: ["pending", "confirmed", "cancelled"],
+      default: "pending",
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-export const Booking = mongoose.model<IBooking>(
-  'Booking',
-  bookingSchema
-);
+export const Booking = mongoose.model<IBooking>("Booking", bookingSchema);
