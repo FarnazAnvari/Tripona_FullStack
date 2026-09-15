@@ -6,7 +6,6 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { allTrips } from "../../data/trips";
 
-
 interface Booking {
   _id: string;
   tripId: number | string;
@@ -26,6 +25,7 @@ export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchMyBookings() {
@@ -55,12 +55,42 @@ export default function BookingsPage() {
     fetchMyBookings();
   }, []);
 
+  const handleCancelBooking = async (bookingId: string) => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to cancel this booking?"
+    );
+    if (!isConfirmed) return;
+
+    try {
+      setCancellingId(bookingId);
+
+      // ارسال درخواست لغو به اندپوینت بک‌اند
+      await apiFetch(`/bookings/${bookingId}`, {
+        method: "DELETE",
+      });
+
+      // به‌روزرسانی آنی وضعیت در UI بدون نیاز به رفرش صفحه
+      setBookings((prevBookings) =>
+        prevBookings.map((b) =>
+          b._id === bookingId ? { ...b, status: "cancelled" } : b
+        )
+      );
+    } catch (err: any) {
+      console.error("Failed to cancel booking:", err);
+      alert(err?.message || "Failed to cancel booking. Please try again.");
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-500 text-sm font-medium">Loading your bookings...</p>
+          <p className="text-gray-500 text-sm font-medium">
+            Loading your bookings...
+          </p>
         </div>
       </div>
     );
@@ -80,13 +110,17 @@ export default function BookingsPage() {
     <div className="max-w-5xl mx-auto p-6 md:p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
-        <p className="text-gray-500 text-sm mt-1">Manage and view all your booked trips</p>
+        <p className="text-gray-500 text-sm mt-1">
+          Manage and view all your booked trips
+        </p>
       </div>
 
       {bookings.length === 0 ? (
         <div className="border border-dashed border-gray-300 rounded-2xl p-12 text-center bg-gray-50/50">
           <div className="text-4xl mb-3">🎒</div>
-          <h3 className="text-lg font-semibold text-gray-800">No bookings yet</h3>
+          <h3 className="text-lg font-semibold text-gray-800">
+            No bookings yet
+          </h3>
           <p className="text-gray-500 text-sm mt-1 mb-6">
             You haven&apos;t booked any adventures yet. Start exploring!
           </p>
@@ -100,7 +134,6 @@ export default function BookingsPage() {
       ) : (
         <div className="space-y-4">
           {bookings.map((booking) => {
-            // پیدا کردن تور بر اساس tripId از لیست allTrips
             const trip = Array.isArray(allTrips)
               ? allTrips.find((t) => Number(t.id) === Number(booking.tripId))
               : null;
@@ -146,14 +179,18 @@ export default function BookingsPage() {
 
                     {(country || duration) && (
                       <p className="text-xs text-gray-500 font-medium">
-                        {country ? `📍 ${country}` : ""} {duration ? `· ⏱ ${duration}` : ""}
+                        {country ? `📍 ${country}` : ""}{" "}
+                        {duration ? `· ⏱ ${duration}` : ""}
                       </p>
                     )}
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 pt-1">
                       <span>📅 {formattedDate}</span>
                       {typeof booking.guests === "number" && (
-                        <span>👥 {booking.guests} guest{booking.guests > 1 ? "s" : ""}</span>
+                        <span>
+                          👥 {booking.guests} guest
+                          {booking.guests > 1 ? "s" : ""}
+                        </span>
                       )}
                       {typeof booking.totalPrice === "number" && (
                         <span className="font-semibold text-gray-900">
@@ -170,10 +207,32 @@ export default function BookingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-gray-50">
-                  <span className="capitalize px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {booking.status || "confirmed"}
+                {/* بخش وضعیت و دکمه لغو رزرو */}
+                <div className="mt-4 md:mt-0 flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-gray-100">
+                  <span
+                    className={`rounded-full px-4 py-2 text-sm font-medium ${
+                      booking.status?.toLowerCase() === "cancelled"
+                        ? "bg-red-50 text-red-600"
+                        : "bg-green-50 text-green-600"
+                    }`}
+                  >
+                    {booking.status?.toLowerCase() === "cancelled"
+                      ? "Cancelled"
+                      : "Confirmed"}
                   </span>
+
+                  {booking.status?.toLowerCase() !== "cancelled" && (
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBooking(booking._id)}
+                      disabled={cancellingId === booking._id}
+                      className="rounded-full border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {cancellingId === booking._id
+                        ? "Cancelling..."
+                        : "Cancel Booking"}
+                    </button>
+                  )}
                 </div>
               </div>
             );

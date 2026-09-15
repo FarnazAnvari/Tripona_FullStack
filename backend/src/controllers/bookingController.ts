@@ -49,3 +49,56 @@ export const getUserBookings = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+// لغو رزرو
+export const cancelBooking = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?._id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
+    const booking = await Booking.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
+
+    if (!booking) {
+      res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+      return;
+    }
+
+    if (booking.status === "cancelled") {
+      res.status(400).json({
+        success: false,
+        message: "Booking is already cancelled",
+      });
+      return;
+    }
+
+    booking.status = "cancelled";
+    await booking.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Booking cancelled successfully",
+      data: booking,
+    });
+  } catch (error) {
+    console.error("Cancel booking error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel booking",
+    });
+  }
+};
