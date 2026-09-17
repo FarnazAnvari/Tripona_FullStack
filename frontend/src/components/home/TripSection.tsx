@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TripItem {
   _id?: string;
-  id: number | string;
+  id?: number | string;
   title: string;
   slug: string;
   category?: string;
@@ -18,212 +18,269 @@ interface TripItem {
   originalPrice?: number;
 }
 
-const cardWidth = 270;
-const gap = 20;
-const move = cardWidth + gap;
+interface TripsApiResponse {
+  data?: TripItem[];
+  trips?: TripItem[];
+}
+
+const ALL_CATEGORY = "All trips";
+const FALLBACK_IMAGE = "/images/fallback-trip.jpg";
 
 export default function TripSection() {
   const [tripsData, setTripsData] = useState<TripItem[]>([]);
+  const [activeTab, setActiveTab] = useState(ALL_CATEGORY);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>(
-    "Only Tripona experiences",
-  );
-  const [index, setIndex] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const [error, setError] = useState("");
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
 
   const sliderRef = useRef<HTMLDivElement | null>(null);
 
-  // ۱. دریافت داده‌ها از API بک‌اند
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchTrips() {
       try {
-        const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const response = await fetch(`${apiUrl}/trips`);
+        setLoading(true);
+        setError("");
+
+        const apiBaseUrl = (
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+        ).replace(/\/$/, "");
+
+        const response = await fetch(`${apiBaseUrl}/trips`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch trips");
+          throw new Error(`Failed to fetch trips: ${response.status}`);
         }
 
-        const result = await response.json();
-        const data: TripItem[] = result.data || [];
-        setTripsData(data);
+        const result = (await response.json()) as
+          | TripsApiResponse
+          | TripItem[];
 
-        // تنظیم تب اولیه بر اساس اولین دسته‌بندی موجود
-        if (data.length > 0 && data[0].category) {
-          setActiveTab(data[0].category);
+        const receivedTrips = Array.isArray(result)
+          ? result
+          : Array.isArray(result.data)
+            ? result.data
+            : Array.isArray(result.trips)
+              ? result.trips
+              : [];
+
+        setTripsData(receivedTrips);
+        setActiveTab(ALL_CATEGORY);
+      } catch (fetchError) {
+        if (
+          fetchError instanceof DOMException &&
+          fetchError.name === "AbortError"
+        ) {
+          return;
         }
-      } catch (error) {
-        console.error("Error fetching trips from API:", error);
+        console.error("Error fetching trips:", fetchError);
+        setError("Trips could not be loaded. Please check your backend.");
+        setTripsData([]);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     fetchTrips();
+
+    return () => controller.abort();
   }, []);
 
-  // استخراج دسته‌بندی‌های یکتا
+  // استخراج دسته‌بندی‌های یکتا به همراه تب All trips
   const categories = useMemo(() => {
     const uniqueCategories = Array.from(
       new Set(
         tripsData
-          .map((t) => t.category)
-          .filter((cat): cat is string => Boolean(cat)),
+          .map((trip) => trip.category?.trim())
+          .filter((category): category is string => Boolean(category)),
       ),
     );
-    return uniqueCategories.length > 0
-      ? uniqueCategories
-      : ["Only Tripona experiences"];
+
+    return [ALL_CATEGORY, ...uniqueCategories];
   }, [tripsData]);
 
-  // ۳. فیلتر کردن تورها بر اساس تب فعال
-  const trips = useMemo(() => {
-    if (!tripsData.length) return [];
-    const filtered = tripsData.filter((t) => t.category === activeTab);
-    return filtered.length > 0 ? filtered : tripsData;
-  }, [tripsData, activeTab]);
+  // فیلتر کردن تورها بر اساس تب انتخاب شده
+  const visibleTrips = useMemo(() => {
+    if (activeTab === ALL_CATEGORY) {
+      return tripsData;
+    }
+    return tripsData.filter((trip) => trip.category?.trim() === activeTab);
+  }, [activeTab, tripsData]);
 
-  const maxTranslate = Math.max(
-    trips.length * cardWidth +
-      Math.max(trips.length - 1, 0) * gap -
-      containerWidth,
-    0,
-  );
+  // اسکرول نرم اسلایدر
+  const scrollSlider = useCallback((direction: "left" | "right") => {
+    const slider = sliderRef.current;
+    if (!slider) return;
 
-  const currentTranslate = Math.min(index * move, maxTranslate);
-  const canGoPrev = currentTranslate > 0;
-  const canGoNext = currentTranslate < maxTranslate;
-
-  useEffect(() => {
-    const updateWidth = () => {
-      if (sliderRef.current) {
-        setContainerWidth(sliderRef.current.offsetWidth);
-      }
-    };
-
-    updateWidth();
-    window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
+    const scrollDistance = 290; // عرض کارت + فاصله
+    slider.scrollBy({
+      left: direction === "right" ? scrollDistance : -scrollDistance,
+      behavior: "smooth",
+    });
   }, []);
 
-  const next = () => {
-    if (canGoNext) setIndex((i) => i + 1);
-  };
-
-  const prev = () => {
-    if (canGoPrev) setIndex((i) => Math.max(i - 1, 0));
-  };
+  const handleImageError = useCallback((tripKey: string) => {
+    setFailedImages((prev) => ({ ...prev, [tripKey]: true }));
+  }, []);
 
   if (loading) {
     return (
-      <section className="py-12 bg-white px-4 md:px-8 text-center">
-        <p className="text-gray-500 animate-pulse">Loading experiences...</p>
+      <section className="bg-white px-4 py-12 md:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 h-8 w-48 animate-pulse rounded bg-gray-200" />
+          <div className="flex gap-5 overflow-hidden">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="w-[270px] flex-none rounded-xl border border-gray-100 bg-white p-2"
+              >
+                <div className="h-48 animate-pulse rounded-lg bg-gray-200" />
+                <div className="mt-4 space-y-2 p-2">
+                  <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200" />
+                  <div className="h-5 w-4/5 animate-pulse rounded bg-gray-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="bg-white px-4 py-12 md:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-sm text-red-600">
+            {error}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (tripsData.length === 0) {
+    return (
+      <section className="bg-white px-4 py-12 md:px-8">
+        <div className="mx-auto max-w-7xl py-12 text-center text-gray-500">
+          No trips found.
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="py-12 bg-white px-4 md:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* تب‌های دسته‌بندی */}
-        <div className="flex gap-8 mb-8 overflow-x-auto">
-          {categories.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => {
-                setActiveTab(tab);
-                setIndex(0);
-              }}
-              className={`text-lg font-bold whitespace-nowrap transition-colors ${
-                activeTab === tab
-                  ? "text-gray-900 border-b-2 border-black pb-1"
-                  : "text-gray-400 hover:text-gray-700"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+    <section className="bg-white px-4 py-12 md:px-8">
+      <div className="mx-auto max-w-7xl">
+        {/* نوار تب‌های دسته‌بندی */}
+        <div
+          className="mb-8 flex gap-8 overflow-x-auto border-b border-gray-100 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="tablist"
+        >
+          {categories.map((category) => {
+            const isActive = activeTab === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => {
+                  setActiveTab(category);
+                  sliderRef.current?.scrollTo({ left: 0, behavior: "smooth" });
+                }}
+                className={`whitespace-nowrap pb-3 text-lg font-bold transition-colors ${
+                  isActive
+                    ? "border-b-2 border-gray-900 text-gray-900"
+                    : "text-gray-400 hover:text-gray-700"
+                }`}
+              >
+                {category}
+              </button>
+            );
+          })}
         </div>
 
         {/* اسلایدر کارت‌های تور */}
-        <div className="relative group">
-          {canGoPrev && (
+        {visibleTrips.length > 0 ? (
+          <div className="group relative">
+            {/* دکمه قبلی */}
             <button
-              onClick={prev}
+              type="button"
+              onClick={() => scrollSlider("left")}
               aria-label="Previous trips"
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20
-              w-10 h-10 flex items-center justify-center
-              rounded-full bg-white/90 shadow-md
-              opacity-0 group-hover:opacity-100
-              hover:scale-110 transition"
+              className="absolute -left-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-800 shadow-lg transition hover:scale-110 group-hover:opacity-100 md:opacity-0"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={22} />
             </button>
-          )}
 
-          <div ref={sliderRef} className="overflow-hidden py-3">
+            {/* ظرف اسکرول کارت‌ها */}
             <div
-              className="flex transition-transform duration-500 ease-out"
-              style={{
-                transform: `translateX(-${currentTranslate}px)`,
-                gap: `${gap}px`,
-              }}
+              ref={sliderRef}
+              className="flex gap-5 overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
-              {trips.map((trip) => {
-                const imageSrc = trip.image || "/images/fallback-trip.jpg";
+              {visibleTrips.map((trip, idx) => {
+                const tripKey = String(
+                  trip._id ?? trip.id ?? trip.slug ?? idx,
+                );
+                const hasFailed = failedImages[tripKey];
+                const imageSrc =
+                  hasFailed || !trip.image ? FALLBACK_IMAGE : trip.image;
 
                 return (
                   <Link
-                    key={trip.id || trip._id}
-                    href={`/trips/${trip.slug}`}
-                    style={{ width: `${cardWidth}px` }}
-                    className="flex-shrink-0 bg-white rounded-xl border border-gray-100
-      overflow-hidden shadow-sm hover:shadow-xl transition group/card cursor-pointer block"
+                    key={tripKey}
+                    href={`/trips/${encodeURIComponent(trip.slug)}`}
+                    className="group/card block w-[270px] flex-none overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-xl"
                   >
-                    <div className="relative h-48">
+                    {/* تصویر و عنوان بزرگ روی عکس */}
+                    <div className="relative h-48 w-full bg-gray-100">
                       <Image
                         src={imageSrc}
                         alt={trip.title}
                         fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 270px"
+                        sizes="270px"
                         className="object-cover transition-transform duration-500 group-hover/card:scale-105"
+                        onError={() => handleImageError(tripKey)}
                       />
-
                       <div className="absolute inset-0 bg-black/25" />
-
-                      <div className="absolute inset-0 flex items-center justify-center text-center p-4">
-                        <h3 className="text-white font-bold text-xl drop-shadow-md">
+                      <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
+                        <h3 className="text-xl font-bold text-white drop-shadow-md line-clamp-2">
                           {trip.experience || trip.title}
                         </h3>
                       </div>
                     </div>
 
-                    <div className="p-4 flex flex-col h-[150px] justify-between">
+                    {/* اطلاعات متنی و قیمت کارت */}
+                    <div className="flex h-[150px] flex-col justify-between p-4">
                       <div>
-                        <p className="text-sm text-gray-500 mb-1">
+                        <p className="mb-1 text-sm text-gray-500">
                           {trip.duration || "Duration varies"}
                         </p>
-
-                        <h4 className="font-bold text-gray-900 group-hover/card:text-red-600 transition line-clamp-2">
+                        <h4 className="line-clamp-2 font-bold text-gray-900 transition group-hover/card:text-red-600">
                           {trip.title}
                         </h4>
                       </div>
 
                       <div className="text-right">
-                        <p className="text-[10px] text-gray-500 uppercase">
+                        <p className="text-[10px] uppercase text-gray-500">
                           From
                         </p>
-
-                        <div className="flex justify-end gap-2 items-center">
-                          {trip.originalPrice && (
-                            <span className="text-gray-400 line-through text-sm">
-                              USD ${trip.originalPrice}
-                            </span>
-                          )}
-
-                          <span className="text-lg font-black">
-                            USD ${trip.currentPrice}
+                        <div className="flex items-center justify-end gap-2">
+                          {typeof trip.originalPrice === "number" &&
+                            trip.originalPrice > trip.currentPrice && (
+                              <span className="text-sm text-gray-400 line-through">
+                                USD ${trip.originalPrice.toLocaleString()}
+                              </span>
+                            )}
+                          <span className="text-lg font-black text-gray-900">
+                            USD ${trip.currentPrice.toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -232,22 +289,22 @@ export default function TripSection() {
                 );
               })}
             </div>
-          </div>
 
-          {canGoNext && (
+            {/* دکمه بعدی */}
             <button
-              onClick={next}
+              type="button"
+              onClick={() => scrollSlider("right")}
               aria-label="Next trips"
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20
-              w-10 h-10 flex items-center justify-center
-              rounded-full bg-white/90 shadow-md
-              opacity-0 group-hover:opacity-100
-              hover:scale-110 transition"
+              className="absolute -right-4 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-800 shadow-lg transition hover:scale-110 group-hover:opacity-100 md:opacity-0"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={22} />
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="py-12 text-center text-gray-500">
+            No trips found in this category.
+          </p>
+        )}
       </div>
     </section>
   );

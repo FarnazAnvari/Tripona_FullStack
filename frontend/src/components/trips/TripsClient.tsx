@@ -12,7 +12,8 @@ export default function TripsClient() {
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
-  const searchQuery = searchParams.get("q") || "";
+  // 👇 خواندن هر دو پارامتر query (از SearchBar اصلی) و q (از اینپوت این صفحه)
+  const searchQuery = searchParams.get("query") || searchParams.get("q") || "";
   const selectedCategory = searchParams.get("category") || "all";
   const maxPriceParam = searchParams.get("maxPrice");
   const sortParam = searchParams.get("sort") || "featured";
@@ -24,11 +25,16 @@ export default function TripsClient() {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     const params = new URLSearchParams(searchParams.toString());
+
+    // پاک کردن پارامتر قبلی برای جلوگیری از هم‌پوشانی
+    params.delete("query");
+
     if (val.trim()) {
       params.set("q", val);
     } else {
       params.delete("q");
     }
+
     startTransition(() => {
       router.push(`/trips?${params.toString()}`, { scroll: false });
     });
@@ -59,14 +65,15 @@ export default function TripsClient() {
       result = result.filter((trip) => categorySlugs.has(trip.slug));
     }
 
-    // ۲. فیلتر جست‌وجو (عنوان، کشور، تجربه و توضیحات)
+    // ۲. فیلتر جست‌وجو (عنوان، کشور، تجربه، شهر و توضیحات)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
         (trip) =>
-          trip.title.toLowerCase().includes(q) ||
+          trip.title?.toLowerCase().includes(q) ||
           trip.country?.toLowerCase().includes(q) ||
-          trip.experience.toLowerCase().includes(q) ||
+          (trip as any).city?.toLowerCase().includes(q) ||
+          trip.experience?.toLowerCase().includes(q) ||
           trip.description?.toLowerCase().includes(q),
       );
     }
@@ -112,7 +119,9 @@ export default function TripsClient() {
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl">
-            Explore All Trips
+            {searchQuery
+              ? `Search Results for "${searchQuery}"`
+              : "Explore All Trips"}
           </h1>
           <p className="mt-2 text-base text-gray-600">
             Find and filter extraordinary curated journeys around the world.
@@ -129,6 +138,7 @@ export default function TripsClient() {
             />
             <input
               type="text"
+              key={searchQuery} // بروزرسانی همزمان اینپوت هنگام تغییر URL از بیرون
               defaultValue={searchQuery}
               onChange={handleSearchChange}
               aria-label="Search trips"
@@ -174,11 +184,7 @@ export default function TripsClient() {
             {filteredTrips.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredTrips.map((trip, index) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    priority={index < 3}
-                  />
+                  <TripCard key={trip.id} trip={trip} priority={index < 3} />
                 ))}
               </div>
             ) : (
@@ -188,7 +194,8 @@ export default function TripsClient() {
                   No trips found
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Try adjusting your search terms or clearing some filters.
+                  No trips match &quot;{searchQuery}&quot;. Try adjusting your
+                  search terms or clearing some filters.
                 </p>
               </div>
             )}
