@@ -12,21 +12,18 @@ export default function TripsClient() {
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
 
-  // 👇 خواندن هر دو پارامتر query (از SearchBar اصلی) و q (از اینپوت این صفحه)
+  // ۱. خواندن پارامترهای جدید
   const searchQuery = searchParams.get("query") || searchParams.get("q") || "";
   const selectedCategory = searchParams.get("category") || "all";
+  const destinationParam = searchParams.get("destination"); // خواندن پارامتر کشور
   const maxPriceParam = searchParams.get("maxPrice");
   const sortParam = searchParams.get("sort") || "featured";
 
-  // استخراج دسته‌بندی‌ها به صورت داینامیک
   const availableCategories = useMemo(() => Object.keys(tripCategories), []);
 
-  // هندل سرچ متنی
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     const params = new URLSearchParams(searchParams.toString());
-
-    // پاک کردن پارامتر قبلی برای جلوگیری از هم‌پوشانی
     params.delete("query");
 
     if (val.trim()) {
@@ -35,12 +32,14 @@ export default function TripsClient() {
       params.delete("q");
     }
 
+    // اگر کاربر در صفحه جستجو چیزی تایپ کرد، فیلتر کشور هم پاک شود (اختیاری، جهت تمیزتر شدن تجربه کاربری)
+    if (val.trim()) params.delete("destination");
+
     startTransition(() => {
       router.push(`/trips?${params.toString()}`, { scroll: false });
     });
   };
 
-  // هندل سورتینگ
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     const params = new URLSearchParams(searchParams.toString());
@@ -65,7 +64,15 @@ export default function TripsClient() {
       result = result.filter((trip) => categorySlugs.has(trip.slug));
     }
 
-    // ۲. فیلتر جست‌وجو (عنوان، کشور، تجربه، شهر و توضیحات)
+    // ۲. فیلتر مقصد (Destination) - اضافه شده
+    if (destinationParam) {
+      result = result.filter(
+        (trip) =>
+          trip.country?.toLowerCase() === destinationParam.toLowerCase(),
+      );
+    }
+
+    // ۳. فیلتر جست‌وجو متنی
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       result = result.filter(
@@ -78,7 +85,7 @@ export default function TripsClient() {
       );
     }
 
-    // ۳. فیلتر حداکثر قیمت
+    // ۴. فیلتر قیمت
     if (maxPriceParam) {
       const maxPrice = Number(maxPriceParam);
       result = result.filter((trip) => {
@@ -87,7 +94,7 @@ export default function TripsClient() {
       });
     }
 
-    // ۴. مرتب‌سازی (Sorting)
+    // ۵. مرتب‌سازی
     result.sort((a, b) => {
       const priceA = Number(a.currentPrice.replace(/[^0-9.]/g, "")) || 0;
       const priceB = Number(b.currentPrice.replace(/[^0-9.]/g, "")) || 0;
@@ -104,24 +111,31 @@ export default function TripsClient() {
           const durB = parseInt(b.duration) || 0;
           return durA - durB;
         }
-        case "featured":
         default:
           return a.id - b.id;
       }
     });
 
     return result;
-  }, [searchQuery, selectedCategory, maxPriceParam, sortParam]);
+  }, [
+    searchQuery,
+    selectedCategory,
+    maxPriceParam,
+    sortParam,
+    destinationParam,
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-50/50 py-8 md:py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
+        {/* Page Header - تغییر جهت نمایش عنوان داینامیک */}
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl">
-            {searchQuery
-              ? `Search Results for "${searchQuery}"`
-              : "Explore All Trips"}
+            {destinationParam
+              ? `Trips in ${destinationParam}`
+              : searchQuery
+                ? `Search Results for "${searchQuery}"`
+                : "Explore All Trips"}
           </h1>
           <p className="mt-2 text-base text-gray-600">
             Find and filter extraordinary curated journeys around the world.
@@ -130,7 +144,6 @@ export default function TripsClient() {
 
         {/* Search & Sort Bar */}
         <div className="mb-8 flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          {/* Search Input */}
           <div className="relative flex-1">
             <Search
               size={18}
@@ -138,7 +151,7 @@ export default function TripsClient() {
             />
             <input
               type="text"
-              key={searchQuery} // بروزرسانی همزمان اینپوت هنگام تغییر URL از بیرون
+              key={searchQuery}
               defaultValue={searchQuery}
               onChange={handleSearchChange}
               aria-label="Search trips"
@@ -147,13 +160,11 @@ export default function TripsClient() {
             />
           </div>
 
-          {/* Sort Selector */}
           <div className="flex items-center gap-2">
             <ArrowUpDown size={16} className="text-gray-400" />
             <select
               value={sortParam}
               onChange={handleSortChange}
-              aria-label="Sort trips"
               className="rounded-xl border border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm font-semibold text-gray-700 outline-none transition focus:border-red-600 focus:bg-white"
             >
               <option value="featured">Featured / Default</option>
@@ -165,14 +176,12 @@ export default function TripsClient() {
           </div>
         </div>
 
-        {/* Main Grid: Sidebar + Trip Cards */}
+        {/* Grid */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-          {/* Left Column: Filters */}
           <div className="lg:col-span-1">
             <TripFilters categories={availableCategories} />
           </div>
 
-          {/* Right Column: Trips List */}
           <main className="lg:col-span-3">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-sm font-bold text-gray-500">
@@ -194,8 +203,7 @@ export default function TripsClient() {
                   No trips found
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  No trips match &quot;{searchQuery}&quot;. Try adjusting your
-                  search terms or clearing some filters.
+                  Try adjusting your filters or search.
                 </p>
               </div>
             )}

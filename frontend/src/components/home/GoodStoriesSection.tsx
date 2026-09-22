@@ -4,12 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+// این آرایه داده‌های اصلی شماست. 
+// اگر مسیر عکس‌ها درست باشد، باید تصاویر لود شوند.
 const stories = [
   {
     id: 1,
     category: "memorable stories",
     title: "The Unfinished Canvas in the Shadow of the Louvre",
-    image: "/images/stories/story-1.jpg",
+    image: "/images/stories/story-1.jpg", 
     link: "/stories/louvre-canvas",
   },
   {
@@ -76,9 +78,12 @@ const GoodStoriesSection = () => {
           Get inspired on The Good Times
         </h2>
 
-        <button className="px-6 py-2 border border-black rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm">
+        <Link 
+          href="/stories" 
+          className="px-6 py-2 border border-black rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm inline-block"
+        >
           Read all stories
-        </button>
+        </Link>
       </div>
 
       <div className="relative">
@@ -130,7 +135,7 @@ const GoodStoriesSection = () => {
                   hover:-translate-y-1 hover:shadow-lg"
                 >
                   {/* image */}
-                  <div className="relative aspect-[16/10] overflow-hidden">
+                  <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
                     <Image
                       src={story.image}
                       alt={story.title}
@@ -140,7 +145,10 @@ const GoodStoriesSection = () => {
                              (max-width:1024px) 33vw,
                              20vw"
                       className="object-cover transition-transform duration-700 group-hover/card:scale-105"
-                      priority
+                      onError={(e) => {
+                        // این بخش کمک می‌کند اگر عکس لود نشد، خطایی در کنسول ببینید
+                        console.error(`Error loading image: ${story.image}`);
+                      }}
                     />
                   </div>
 

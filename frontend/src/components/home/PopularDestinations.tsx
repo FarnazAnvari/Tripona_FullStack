@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const destinations = [
@@ -40,9 +41,12 @@ const PopularDestinations = () => {
           Popular destinations
         </h2>
 
-        <button className="px-6 py-2 border border-black rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm">
+        <Link
+          href="/trips"
+          className="px-6 py-2 border border-black rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm inline-block text-center"
+        >
           Search all destinations
-        </button>
+        </Link>
       </div>
 
       <div className="relative">
@@ -86,8 +90,11 @@ const PopularDestinations = () => {
                 key={dest.id}
                 className="min-w-[50%] sm:min-w-[33.33%] md:min-w-[25%] lg:min-w-[20%] px-2"
               >
-                {/* card */}
-                <div className="relative aspect-[4/5] rounded-2xl overflow-hidden cursor-pointer shadow-sm group/card">
+                {/* کارت ها اکنون به صورت لینک هستند */}
+                <Link
+                  href={`/trips?destination=${encodeURIComponent(dest.name)}`}
+                  className="relative aspect-[4/5] rounded-2xl overflow-hidden cursor-pointer shadow-sm group/card block"
+                >
                   <Image
                     src={dest.image}
                     alt={dest.name}
@@ -106,7 +113,7 @@ const PopularDestinations = () => {
                       {dest.name}
                     </span>
                   </div>
-                </div>
+                </Link>
               </div>
             ))}
           </div>
