@@ -56,9 +56,7 @@ export default function TripSection() {
           throw new Error(`Failed to fetch trips: ${response.status}`);
         }
 
-        const result = (await response.json()) as
-          | TripsApiResponse
-          | TripItem[];
+        const result = (await response.json()) as TripsApiResponse | TripItem[];
 
         const receivedTrips = Array.isArray(result)
           ? result
@@ -226,9 +224,7 @@ export default function TripSection() {
               className="flex gap-5 overflow-x-auto py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {visibleTrips.map((trip, idx) => {
-                const tripKey = String(
-                  trip._id ?? trip.id ?? trip.slug ?? idx,
-                );
+                const tripKey = String(trip._id ?? trip.id ?? trip.slug ?? idx);
                 const hasFailed = failedImages[tripKey];
                 const imageSrc =
                   hasFailed || !trip.image ? FALLBACK_IMAGE : trip.image;
@@ -249,12 +245,7 @@ export default function TripSection() {
                         className="object-cover transition-transform duration-500 group-hover/card:scale-105"
                         onError={() => handleImageError(tripKey)}
                       />
-                      <div className="absolute inset-0 bg-black/25" />
-                      <div className="absolute inset-0 flex items-center justify-center p-4 text-center">
-                        <h3 className="text-xl font-bold text-white drop-shadow-md line-clamp-2">
-                          {trip.experience || trip.title}
-                        </h3>
-                      </div>
+                        {trip.experience || trip.title}
                     </div>
 
                     {/* اطلاعات متنی و قیمت کارت */}

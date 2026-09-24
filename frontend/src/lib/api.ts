@@ -33,7 +33,9 @@ function getClientToken(): string | null {
   }
 
   // بررسی کوکی‌ها در صورتی که توکن به عنوان کوکی ذخیره شده باشد
-  const match = document.cookie.match(/(?:^|;\s*)(?:tripona_token|token|accessToken)=([^;]*)/);
+  const match = document.cookie.match(
+    /(?:^|;\s*)(?:tripona_token|token|accessToken)=([^;]*)/,
+  );
   if (match && match[1]) {
     return decodeURIComponent(match[1]);
   }
@@ -46,7 +48,7 @@ function getClientToken(): string | null {
  */
 export async function apiFetch<T = any>(
   endpoint: string,
-  options: ApiFetchOptions = {}
+  options: ApiFetchOptions = {},
 ): Promise<T> {
   const { token, headers: customHeaders, ...restOptions } = options;
 
@@ -104,10 +106,15 @@ export async function apiFetch<T = any>(
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Please sign in to your account first.");
+      }
+
       const errorMessage =
         data?.message ||
         data?.error ||
-        `خطایی با وضعیت ${response.status} رخ داده است`;
+        `An error occurred with status ${response.status}`;
+
       throw new Error(errorMessage);
     }
 
