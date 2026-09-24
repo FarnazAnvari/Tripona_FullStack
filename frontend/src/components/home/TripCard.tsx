@@ -56,7 +56,7 @@ export default function TripCard({ trip, priority = false }: TripCardProps) {
         <div className="mt-4 flex items-baseline gap-2">
           <span className="text-xs font-medium text-gray-400">From</span>
           <span className="text-lg font-bold text-gray-900">
-            USD ${trip.price}
+            From USD {trip.currentPrice.toLocaleString()}
           </span>
           {trip.oldPrice ? (
             <span className="text-sm text-gray-400 line-through">

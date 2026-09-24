@@ -352,11 +352,11 @@ export default function Header() {
         <div className="flex items-center gap-6 text-gray-800">
           <div className="hidden lg:flex items-center gap-5">
             <Link
-              href="#"
-              className="hover:text-[#e31c23] transition-colors"
-              title="Wishlist"
+              href="/favorites"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-700"
+              title="Favorites"
             >
-              <Heart size={22} strokeWidth={1.5} />
+              <Heart className="w-5 h-5" />
             </Link>
 
             {/* بخش احراز هویت هوشمند کاربر */}
@@ -418,11 +418,11 @@ export default function Header() {
             )}
 
             <Link
-              href="#"
-              className="hover:text-[#e31c23] transition-colors"
-              title="Contact"
+              href="/contact"
+              title="Contact Us"
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-700 hover:text-black flex items-center justify-center"
             >
-              <Phone size={22} strokeWidth={1.5} />
+              <Phone className="w-5 h-5" />
             </Link>
           </div>
 
